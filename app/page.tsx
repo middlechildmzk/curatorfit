@@ -24,15 +24,15 @@ export default async function HomePage() {
               Find playlists your song actually fits.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-              CuratorFit helps independent artists discover safer, better-fit playlist opportunities, track every pitch, and avoid sketchy “guaranteed placement” services. Spotify is the beachhead; the platform is built to expand into SoundCloud, YouTube, TikTok, blogs, radio, and labels.
+              CuratorFit helps independent and AI-assisted artists find better-fit playlists, avoid fake promotion, write cleaner pitches, and track every submission in one place. Spotify is the beachhead; the platform is built to expand into SoundCloud, YouTube, TikTok, blogs, radio, labels, and sync.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/browse" className="btn-primary">Browse seed directory <ArrowRight size={16} /></Link>
-              <Link href="/tools" className="btn-secondary">Use free tools</Link>
-              <Link href="/ai-music" className="btn-secondary">AI music hub</Link>
+              <Link href="/tools/spotify-playlist-scam-checker" className="btn-primary">Check a playlist <ArrowRight size={16} /></Link>
+              <Link href="/tools/playlist-pitch-generator" className="btn-secondary">Generate a pitch</Link>
+              <Link href="/waitlist" className="btn-secondary">Join beta</Link>
             </div>
             <div className="mt-8 grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
-              {['No guaranteed streams', 'No paid placement language', 'Curator claim flow', 'Multi-channel campaign tracker'].map((item) => (
+              {['No guaranteed streams', 'No paid placement', 'AI music release hub', 'Campaign tracker beta'].map((item) => (
                 <div key={item} className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-brand2" />{item}</div>
               ))}
             </div>
@@ -55,7 +55,7 @@ export default async function HomePage() {
       <section className="mx-auto max-w-7xl px-5 py-16">
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
-            <p className="text-sm font-bold uppercase tracking-widest text-brand">V1 seed directory</p>
+            <p className="text-sm font-bold uppercase tracking-widest text-brand">Public launch directory</p>
             <h2 className="mt-2 text-3xl font-black tracking-tight">Starter playlists</h2>
           </div>
           <Link href="/browse" className="btn-secondary">View all</Link>
@@ -70,7 +70,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-5 py-16">
           <div className="mb-8 flex items-end justify-between gap-4">
             <div>
-              <p className="text-sm font-bold uppercase tracking-widest text-brand">V1.7 content engine</p>
+              <p className="text-sm font-bold uppercase tracking-widest text-brand">V1.8 traffic engine</p>
               <h2 className="mt-2 text-3xl font-black tracking-tight">Guides and tools that turn search traffic into campaigns</h2>
             </div>
             <Link href="/blog" className="btn-secondary">Read the blog</Link>
