@@ -1,6 +1,6 @@
 {
-  "name": "curatorfit-v17-content-tools-hub",
-  "version": "0.1.7",
+  "name": "curatorfit-v2-saas-mode-scaffold",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
