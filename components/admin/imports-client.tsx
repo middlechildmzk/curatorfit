@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { buildImportBatchSummary, parsePromotionTargetCsv, promotionTargetImportColumns } from '@/data/import-schema';
 import { testImportCsv, testImportBatchName } from '@/data/test-import-25';
 import { batch2ElectronicCsv, batch2ElectronicName, batch2ElectronicSummary } from '@/data/batch-2-electronic';
+import { allAiTeamBatchCsv, allAiTeamBatchName, allAiTeamBatchSummary } from '@/data/all-ai-team-batch';
 import { clearLocalImportBatches, deleteLocalImportBatch, exportLocalImportBatchesJson, readLocalImportBatches, saveLocalImportBatch, type LocalImportBatch } from '@/data/local-import-store';
 
 function Stat({ label, value }: { label: string; value: string | number }) {
@@ -77,6 +78,12 @@ export function ImportsClient() {
     setNotice(`Loaded electronic expansion batch: ${batch2ElectronicSummary.rowCount} rows. Review source and directory rows before saving.`);
   }
 
+  function loadAllAiTeamBatch() {
+    setBatchName(allAiTeamBatchName);
+    setCsvText(allAiTeamBatchCsv);
+    setNotice(`Loaded consolidated AI team batch: ${allAiTeamBatchSummary.rowCount} rows. Placeholder rows are intentionally routed to review.`);
+  }
+
   return (
     <div className="min-h-screen bg-[#05070a] text-slate-100">
       <div className="mx-auto max-w-7xl px-5 py-10">
@@ -105,6 +112,7 @@ export function ImportsClient() {
               <div className="flex flex-wrap gap-2">
                 <button onClick={loadTestBatch} className="rounded-full border border-emerald-400/30 px-3 py-1 font-mono text-xs text-emerald-200 hover:bg-emerald-400/10">load test</button>
                 <button onClick={loadElectronicBatch} className="rounded-full border border-emerald-400/30 px-3 py-1 font-mono text-xs text-emerald-200 hover:bg-emerald-400/10">load electronic batch</button>
+                <button onClick={loadAllAiTeamBatch} className="rounded-full border border-emerald-400/30 px-3 py-1 font-mono text-xs text-emerald-200 hover:bg-emerald-400/10">load all AI team</button>
                 <button onClick={() => setCsvText([promotionTargetImportColumns.join(','), ''].join('\n'))} className="rounded-full border border-emerald-400/30 px-3 py-1 font-mono text-xs text-emerald-200 hover:bg-emerald-400/10">clear</button>
               </div>
             </div>
@@ -113,7 +121,7 @@ export function ImportsClient() {
               <button onClick={handleSaveBatch} className="rounded-full bg-emerald-300 px-5 py-3 text-sm font-black text-black hover:bg-emerald-200">Save batch locally</button>
               <button onClick={handleExportJson} disabled={!savedBatches.length} className="rounded-full border border-emerald-400/30 px-5 py-3 text-sm font-bold text-emerald-100 hover:bg-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-40">Export saved JSON</button>
             </div>
-            <div className="mt-4 rounded-2xl border border-emerald-400/10 bg-black/30 p-4 text-xs leading-5 text-slate-400"><span className="font-mono text-emerald-300">Electronic batch note:</span> {batch2ElectronicSummary.caution}</div>
+            <div className="mt-4 rounded-2xl border border-emerald-400/10 bg-black/30 p-4 text-xs leading-5 text-slate-400"><span className="font-mono text-emerald-300">Batch note:</span> {allAiTeamBatchSummary.caution}</div>
           </section>
 
           <section className="grid gap-5">
