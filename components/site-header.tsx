@@ -3,13 +3,13 @@ import { Music2 } from 'lucide-react';
 import { AuthStatus } from '@/components/auth-status';
 
 const primaryLinks = [
-  { href: '/blog', label: 'Blog' },
+  { href: '/targets', label: 'Targets' },
+  { href: '/match', label: 'Match' },
   { href: '/tools', label: 'Tools' },
+  { href: '/blog', label: 'Blog' },
   { href: '/ai-music', label: 'AI Music' },
   { href: '/genres', label: 'Genres' },
-  { href: '/alternatives', label: 'Alternatives' },
-  { href: '/targets', label: 'Targets' },
-  { href: '/v2', label: 'V2' }
+  { href: '/pricing', label: 'Pricing' }
 ];
 
 export function SiteHeader() {
@@ -25,7 +25,7 @@ export function SiteHeader() {
         </nav>
         <div className="flex items-center gap-2">
           <Link href="/waitlist" className="btn-secondary hidden sm:inline-flex">Join beta</Link>
-          <Link href="/tools/playlist-pitch-generator" className="btn-primary hidden sm:inline-flex">Try tool</Link>
+          <Link href="/match" className="btn-primary hidden sm:inline-flex">Match song</Link>
           <AuthStatus />
         </div>
       </div>
