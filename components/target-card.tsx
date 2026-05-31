@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { ArrowRight, BadgeCheck, Globe2, ShieldAlert } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Globe2, ShieldAlert, Sparkles } from 'lucide-react';
 import type { PromotionTarget } from '@/data/seed';
 
 export function TargetCard({ target }: { target: PromotionTarget }) {
   const riskClass = target.trustScore >= 75 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : target.trustScore >= 60 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-slate-700 bg-slate-50 border-slate-200';
+  const aiLabel = target.allowsAiAssistedMusic ? target.allowsAiAssistedMusic.replaceAll('_', ' ') : 'unknown';
 
   return (
     <Link href={`/targets/${target.slug}`} className="card group block p-5 transition hover:-translate-y-1 hover:shadow-lg">
@@ -20,11 +21,14 @@ export function TargetCard({ target }: { target: PromotionTarget }) {
 
       <div className="mt-5 flex flex-wrap gap-2">
         {target.genres.slice(0, 3).map((genre) => <span key={genre} className="pill">{genre}</span>)}
+        {target.energyLevel ? <span className="pill">{target.energyLevel} energy</span> : null}
+        {target.freeOrPaid ? <span className="pill">{target.freeOrPaid}</span> : null}
       </div>
 
       <div className="mt-5 grid gap-2 text-xs font-medium text-slate-500">
         <div className="flex items-center gap-2"><Globe2 size={14} /> {target.audienceSize}</div>
         <div className="flex items-center gap-2"><BadgeCheck size={14} /> {target.status === 'seed' ? 'Seed profile' : target.status}</div>
+        <div className="flex items-center gap-2"><Sparkles size={14} /> AI policy: {aiLabel}</div>
         <div className="flex items-center gap-2"><ShieldAlert size={14} /> {target.riskNotes}</div>
       </div>
 
