@@ -1,6 +1,6 @@
 # CuratorFit V2.3 Expanded Research Batches
 
-Source: user-provided multi-model research from Meta, Gemini, Perplexity, Grok, Copilot, and Claude follow-up notes.
+Source: user-provided multi-model research from Meta, Gemini, Perplexity, Grok, Copilot, and Claude CuratorFit follow-up notes.
 
 ## Executive synthesis
 
@@ -358,19 +358,6 @@ CuratorFit should support the following risk flags:
 - missing_owner_info.
 - unverifiable_audience_size.
 - category_placeholder.
-
-## SourcingOS pasted section note
-
-The final Claude Sprint 2.1 patch report in the user message is about SourcingOS, not CuratorFit. Do not merge those code changes into CuratorFit. It should be saved in the SourcingOS project context separately as a successful Sprint 2.1 patch report and Sprint 2.5 handoff.
-
-Key SourcingOS note only:
-
-- Sprint 2.1 build clean.
-- Project API routes forced dynamic.
-- Owner ID injection fixed.
-- Taxonomy false chips patched.
-- Saved entries UX improved.
-- Sprint 2.5 unblocked for Candidate 360 Supabase + persistence hardening.
 
 ## Immediate next work order
 
