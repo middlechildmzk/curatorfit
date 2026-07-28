@@ -41,8 +41,8 @@ export function FanCaptureForm({ smartLinkId, policyVersion }: { smartLinkId: st
     return (
       <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 p-4 text-left">
         <CheckCircle2 className="h-5 w-5 text-emerald-300" />
-        <p className="mt-3 font-bold">You are on the list.</p>
-        <p className="mt-1 text-sm leading-6 text-white/60">Release updates will go to {email}. You can unsubscribe at any time.</p>
+        <p className="mt-3 font-bold">Your signup was recorded.</p>
+        <p className="mt-1 text-sm leading-6 text-white/60">We saved your request for updates at {email}. The address remains unverified until an email-confirmation workflow succeeds.</p>
       </div>
     );
   }
