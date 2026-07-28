@@ -4,20 +4,22 @@ import { SiteHeader } from '@/components/site-header';
 import { SiteFooter } from '@/components/site-footer';
 
 export const metadata: Metadata = {
-  title: 'CuratorFit — Honest Music Pitch OS',
-  description: 'Find better-fit playlists, avoid fake promotion, track every pitch, and release smarter. Built for independent and AI-assisted artists.',
-  metadataBase: new URL('https://curatorfit.vercel.app'),
+  title: {
+    default: 'ArtistOS — Release, promote and prove your music',
+    template: '%s | ArtistOS'
+  },
+  description: 'The release operating system for smart links, multi-channel campaigns, CuratorFit targeting, proof records and artist-owned fan data.',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://curatorfit.vercel.app'),
   openGraph: {
-    title: 'CuratorFit — Honest Music Pitch OS',
-    description: 'Find better-fit playlists, avoid fake promotion, track every pitch, and release smarter.',
-    url: 'https://curatorfit.vercel.app',
-    siteName: 'CuratorFit',
-    type: 'website'
+    title: 'ArtistOS — Release, promote and prove your music',
+    description: 'One release workspace connecting links, campaigns, verified promotion evidence and first-party fans.',
+    type: 'website',
+    siteName: 'ArtistOS'
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'CuratorFit — Honest Music Pitch OS',
-    description: 'Find better-fit playlists, avoid fake promotion, track every pitch, and release smarter.'
+    title: 'ArtistOS — Release, promote and prove your music',
+    description: 'One release workspace connecting links, campaigns, verified promotion evidence and first-party fans.'
   }
 };
 
