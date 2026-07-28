@@ -49,19 +49,17 @@ export async function POST(request: Request) {
 
   let fanId = existingFan?.id || null;
   if (fanId) {
-    const { error } = await supabase
-      .from('fans')
-      .update({
-        email: normalizedEmail,
-        first_name: firstName,
-        name: firstName,
-        consent_status: 'opted_in',
-        consent_source: 'artistos_smart_link',
-        source_smart_link_id: smartLink.id,
-        last_seen_at: nowIso,
-        consent_last_recorded_at: nowIso
-      })
-      .eq('id', fanId);
+    const updates: Record<string, unknown> = {
+      source_smart_link_id: smartLink.id,
+      last_seen_at: nowIso,
+      consent_last_recorded_at: nowIso
+    };
+    if (firstName) {
+      updates.first_name = firstName;
+      updates.name = firstName;
+    }
+
+    const { error } = await supabase.from('fans').update(updates).eq('id', fanId);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   } else {
     const { data: fan, error } = await supabase
@@ -72,7 +70,7 @@ export async function POST(request: Request) {
         email: normalizedEmail,
         first_name: firstName,
         name: firstName,
-        consent_status: 'opted_in',
+        consent_status: 'Explicit web-form opt-in; email unverified',
         consent_source: 'artistos_smart_link',
         first_seen: today,
         verification_status: 'unverified',
@@ -89,6 +87,7 @@ export async function POST(request: Request) {
 
   const attribution = {
     method: 'explicit_checkbox',
+    identity_verification: 'email_unverified',
     captured_at: nowIso,
     utm_source: cleanText(input.utmSource, 120) || null,
     utm_medium: cleanText(input.utmMedium, 120) || null,
@@ -129,8 +128,8 @@ export async function POST(request: Request) {
     utm_medium: cleanText(input.utmMedium, 120) || null,
     utm_campaign: cleanText(input.utmCampaign, 160) || null,
     referrer: cleanText(request.headers.get('referer'), 500) || null,
-    metadata: { consent_policy_version: input.policyVersion }
+    metadata: { consent_policy_version: input.policyVersion, email_verified: false }
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, emailVerified: false });
 }
