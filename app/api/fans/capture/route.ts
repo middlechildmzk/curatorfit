@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { cleanText } from '@/lib/server-auth';
@@ -16,11 +15,6 @@ const schema = z.object({
   utmCampaign: z.string().max(160).optional().or(z.literal(''))
 });
 
-function hashEvidence(value: string) {
-  const salt = process.env.CONSENT_HASH_SALT || process.env.SUPABASE_SERVICE_ROLE_KEY || 'artistos-local-development';
-  return createHash('sha256').update(`${salt}:${value}`).digest('hex');
-}
-
 export async function POST(request: Request) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return NextResponse.json({ ok: true, mode: 'demo' });
@@ -32,83 +26,104 @@ export async function POST(request: Request) {
   const input = parsed.data;
   const { data: smartLink, error: linkError } = await supabase
     .from('smart_links')
-    .select('id,release_id,is_active')
+    .select('id,workspace_id,owner_id,is_active')
     .eq('id', input.smartLinkId)
     .eq('is_active', true)
     .maybeSingle();
 
   if (linkError || !smartLink) return NextResponse.json({ ok: false, error: 'This fan link is no longer active.' }, { status: 404 });
 
-  const { data: release } = await supabase
-    .from('releases')
-    .select('artist_profile_id')
-    .eq('id', smartLink.release_id)
-    .maybeSingle();
-
-  if (!release?.artist_profile_id) return NextResponse.json({ ok: false, error: 'Release owner could not be resolved.' }, { status: 409 });
-
-  const { data: artistProfile } = await supabase
-    .from('artist_profiles')
-    .select('user_id')
-    .eq('id', release.artist_profile_id)
-    .maybeSingle();
-
-  if (!artistProfile?.user_id) return NextResponse.json({ ok: false, error: 'Release owner could not be resolved.' }, { status: 409 });
-
   const normalizedEmail = input.email.trim().toLowerCase();
-  const now = new Date().toISOString();
-  const { data: fan, error: fanError } = await supabase
+  const firstName = cleanText(input.firstName, 100) || null;
+  const nowIso = new Date().toISOString();
+  const today = nowIso.slice(0, 10);
+
+  const { data: existingFan } = await supabase
     .from('fans')
-    .upsert(
-      {
-        owner_user_id: artistProfile.user_id,
-        source_smart_link_id: smartLink.id,
-        email: normalizedEmail,
-        normalized_email: normalizedEmail,
-        first_name: cleanText(input.firstName, 100) || null,
-        source_channel: cleanText(input.utmSource, 120) || 'smart_link',
-        source_campaign: cleanText(input.utmCampaign, 160) || null,
-        last_seen_at: now,
-        updated_at: now
-      },
-      { onConflict: 'owner_user_id,normalized_email' }
-    )
     .select('id')
-    .single();
+    .eq('workspace_id', smartLink.workspace_id)
+    .is('archived_at', null)
+    .ilike('email', normalizedEmail)
+    .limit(1)
+    .maybeSingle();
 
-  if (fanError || !fan) return NextResponse.json({ ok: false, error: fanError?.message || 'Could not save fan signup.' }, { status: 500 });
+  let fanId = existingFan?.id || null;
+  if (fanId) {
+    const { error } = await supabase
+      .from('fans')
+      .update({
+        email: normalizedEmail,
+        first_name: firstName,
+        name: firstName,
+        consent_status: 'opted_in',
+        consent_source: 'artistos_smart_link',
+        source_smart_link_id: smartLink.id,
+        last_seen_at: nowIso,
+        consent_last_recorded_at: nowIso
+      })
+      .eq('id', fanId);
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  } else {
+    const { data: fan, error } = await supabase
+      .from('fans')
+      .insert({
+        workspace_id: smartLink.workspace_id,
+        created_by: smartLink.owner_id,
+        email: normalizedEmail,
+        first_name: firstName,
+        name: firstName,
+        consent_status: 'opted_in',
+        consent_source: 'artistos_smart_link',
+        first_seen: today,
+        verification_status: 'unverified',
+        source_smart_link_id: smartLink.id,
+        last_seen_at: nowIso,
+        consent_last_recorded_at: nowIso
+      })
+      .select('id')
+      .single();
 
-  const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-  const userAgent = request.headers.get('user-agent') || 'unknown';
+    if (error || !fan) return NextResponse.json({ ok: false, error: error?.message || 'Could not save fan signup.' }, { status: 500 });
+    fanId = fan.id;
+  }
+
+  const attribution = {
+    method: 'explicit_checkbox',
+    captured_at: nowIso,
+    utm_source: cleanText(input.utmSource, 120) || null,
+    utm_medium: cleanText(input.utmMedium, 120) || null,
+    utm_campaign: cleanText(input.utmCampaign, 160) || null
+  };
 
   const { error: consentError } = await supabase.from('fan_consents').insert([
     {
-      fan_id: fan.id,
-      type: 'email_marketing',
+      workspace_id: smartLink.workspace_id,
+      fan_id: fanId,
+      smart_link_id: smartLink.id,
+      consent_type: 'email_marketing',
       granted: true,
       policy_version: input.policyVersion,
       source_url: input.sourceUrl || null,
-      ip_hash: hashEvidence(forwardedFor),
-      user_agent_hash: hashEvidence(userAgent),
-      evidence: { method: 'explicit_checkbox', captured_at: now }
+      evidence: attribution
     },
     {
-      fan_id: fan.id,
-      type: 'privacy_terms',
+      workspace_id: smartLink.workspace_id,
+      fan_id: fanId,
+      smart_link_id: smartLink.id,
+      consent_type: 'privacy_terms',
       granted: true,
       policy_version: input.policyVersion,
       source_url: input.sourceUrl || null,
-      ip_hash: hashEvidence(forwardedFor),
-      user_agent_hash: hashEvidence(userAgent),
-      evidence: { method: 'form_submission', captured_at: now }
+      evidence: { ...attribution, method: 'form_submission' }
     }
   ]);
 
   if (consentError) return NextResponse.json({ ok: false, error: consentError.message }, { status: 500 });
 
   await supabase.from('link_events').insert({
+    workspace_id: smartLink.workspace_id,
     smart_link_id: smartLink.id,
-    fan_id: fan.id,
+    fan_id: fanId,
     event_type: 'fan_signup',
     utm_source: cleanText(input.utmSource, 120) || null,
     utm_medium: cleanText(input.utmMedium, 120) || null,
