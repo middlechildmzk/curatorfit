@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createReleaseSlug } from '@/lib/artistos';
+import { canManageWorkspace, findOrCreateArtist, getWorkspaceContext } from '@/lib/artistos-workspace';
 import { cleanText, getRequestUser } from '@/lib/server-auth';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
@@ -12,7 +13,7 @@ const createReleaseSchema = z.object({
   upc: z.string().max(40).optional().or(z.literal('')),
   sourceUrl: z.string().url().optional().or(z.literal('')),
   releaseType: z.enum(['single', 'ep', 'album', 'remix', 'other']).default('single'),
-  campaignGoal: z.string().max(120).default('multi_channel_release')
+  campaignGoal: z.string().max(500).default('multi_channel_release')
 });
 
 const demoRelease = {
@@ -20,12 +21,12 @@ const demoRelease = {
   title: 'Never Alone',
   artistName: 'Middle Child',
   releaseDate: '2026-07-31',
-  status: 'scheduled',
+  status: 'upcoming',
   isrc: null,
   upc: '882877618355',
   sourceUrl: null,
   smartLink: { id: 'demo-link', slug: 'middle-child-never-alone', mode: 'presave', isActive: true },
-  campaign: { id: 'demo-campaign', name: 'Never Alone release campaign', status: 'planning' },
+  campaign: { id: 'demo-campaign', name: 'Never Alone Release Campaign', status: 'active' },
   evidenceCount: 0,
   createdAt: new Date().toISOString()
 };
@@ -47,7 +48,7 @@ function releaseStatus(releaseDate?: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const date = new Date(`${releaseDate}T00:00:00`);
-  return date.getTime() > today.getTime() ? 'scheduled' : 'live';
+  return date.getTime() > today.getTime() ? 'upcoming' : 'released';
 }
 
 export async function GET(request: Request) {
@@ -57,67 +58,61 @@ export async function GET(request: Request) {
   const auth = await getRequestUser(request);
   if (!auth) return NextResponse.json({ ok: false, error: 'Log in to open ArtistOS.' }, { status: 401 });
 
-  const { data: artistProfile } = await supabase
-    .from('artist_profiles')
-    .select('id,artist_name')
-    .eq('user_id', auth.user.id)
-    .maybeSingle();
-
-  if (!artistProfile?.id) return NextResponse.json({ ok: true, releases: [] });
+  const workspace = await getWorkspaceContext(supabase, auth.user.id);
+  if (!workspace) return NextResponse.json({ ok: false, error: 'No ArtistOS workspace is assigned to this account.' }, { status: 403 });
 
   const { data: releases, error } = await supabase
     .from('releases')
-    .select('id,title,primary_artist_name,release_date,status,isrc,upc,source_url,created_at')
-    .eq('artist_profile_id', artistProfile.id)
+    .select('id,artist_id,title,release_date,status,isrc,upc,spotify_url,created_at')
+    .eq('workspace_id', workspace.workspaceId)
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(100);
 
-  if (error) {
-    const migrationMissing = error.message.toLowerCase().includes('releases');
-    return NextResponse.json(
-      { ok: false, error: migrationMissing ? 'ArtistOS database migration has not been applied yet.' : error.message },
-      { status: 500 }
-    );
-  }
-
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   const releaseIds = (releases || []).map((release) => release.id);
-  if (!releaseIds.length) return NextResponse.json({ ok: true, releases: [] });
+  const artistIds = [...new Set((releases || []).map((release) => release.artist_id))];
 
-  const [{ data: links }, { data: campaigns }, { data: evidence }] = await Promise.all([
-    supabase.from('smart_links').select('id,release_id,slug,mode,is_active').in('release_id', releaseIds),
-    supabase.from('campaigns').select('id,release_id,name,status').in('release_id', releaseIds),
-    supabase.from('evidence_records').select('release_id').in('release_id', releaseIds)
+  const [artistsResult, linksResult, campaignsResult, evidenceResult] = await Promise.all([
+    artistIds.length
+      ? supabase.from('artists').select('id,name').in('id', artistIds)
+      : Promise.resolve({ data: [] as Array<{ id: string; name: string }> }),
+    releaseIds.length
+      ? supabase.from('smart_links').select('id,release_id,slug,mode,is_active').eq('workspace_id', workspace.workspaceId).in('release_id', releaseIds)
+      : Promise.resolve({ data: [] as Array<{ id: string; release_id: string; slug: string; mode: string; is_active: boolean }> }),
+    releaseIds.length
+      ? supabase.from('campaigns').select('id,release_id,name,status').eq('workspace_id', workspace.workspaceId).in('release_id', releaseIds)
+      : Promise.resolve({ data: [] as Array<{ id: string; release_id: string; name: string; status: string }> }),
+    releaseIds.length
+      ? supabase.from('evidence_records').select('release_id').eq('workspace_id', workspace.workspaceId).in('release_id', releaseIds).is('revoked_at', null)
+      : Promise.resolve({ data: [] as Array<{ release_id: string }> })
   ]);
 
-  const payload = (releases || []).map((release) => ({
-    id: release.id,
-    title: release.title,
-    artistName: release.primary_artist_name || artistProfile.artist_name,
-    releaseDate: release.release_date,
-    status: release.status,
-    isrc: release.isrc,
-    upc: release.upc,
-    sourceUrl: release.source_url,
-    smartLink: links?.find((link) => link.release_id === release.id)
-      ? {
-          id: links.find((link) => link.release_id === release.id)!.id,
-          slug: links.find((link) => link.release_id === release.id)!.slug,
-          mode: links.find((link) => link.release_id === release.id)!.mode,
-          isActive: links.find((link) => link.release_id === release.id)!.is_active
-        }
-      : null,
-    campaign: campaigns?.find((campaign) => campaign.release_id === release.id)
-      ? {
-          id: campaigns.find((campaign) => campaign.release_id === release.id)!.id,
-          name: campaigns.find((campaign) => campaign.release_id === release.id)!.name,
-          status: campaigns.find((campaign) => campaign.release_id === release.id)!.status
-        }
-      : null,
-    evidenceCount: evidence?.filter((record) => record.release_id === release.id).length || 0,
-    createdAt: release.created_at
-  }));
+  const artists = artistsResult.data || [];
+  const links = linksResult.data || [];
+  const campaigns = campaignsResult.data || [];
+  const evidence = evidenceResult.data || [];
 
-  return NextResponse.json({ ok: true, releases: payload });
+  return NextResponse.json({
+    ok: true,
+    releases: (releases || []).map((release) => {
+      const link = links.find((item) => item.release_id === release.id) || null;
+      const campaign = campaigns.find((item) => item.release_id === release.id) || null;
+      return {
+        id: release.id,
+        title: release.title,
+        artistName: artists.find((artist) => artist.id === release.artist_id)?.name || 'Unknown artist',
+        releaseDate: release.release_date,
+        status: release.status,
+        isrc: release.isrc,
+        upc: release.upc,
+        sourceUrl: release.spotify_url,
+        smartLink: link ? { id: link.id, slug: link.slug, mode: link.mode, isActive: link.is_active } : null,
+        campaign: campaign ? { id: campaign.id, name: campaign.name, status: campaign.status } : null,
+        evidenceCount: evidence.filter((record) => record.release_id === release.id).length,
+        createdAt: release.created_at
+      };
+    })
+  });
 }
 
 export async function POST(request: Request) {
@@ -127,100 +122,70 @@ export async function POST(request: Request) {
   const auth = await getRequestUser(request);
   if (!auth) return NextResponse.json({ ok: false, error: 'Log in before creating a release.' }, { status: 401 });
 
+  const workspace = await getWorkspaceContext(supabase, auth.user.id);
+  if (!workspace || !canManageWorkspace(workspace.role)) {
+    return NextResponse.json({ ok: false, error: 'Editor access is required to create releases.' }, { status: 403 });
+  }
+
   const body = await request.json().catch(() => null);
   const parsed = createReleaseSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ ok: false, error: 'Check the release details and try again.' }, { status: 400 });
 
   const input = parsed.data;
-  await supabase.from('profiles').upsert(
-    {
-      id: auth.user.id,
-      email: auth.user.email,
-      display_name: cleanText(input.artistName, 160),
-      role: 'artist',
-      updated_at: new Date().toISOString()
-    },
-    { onConflict: 'id' }
-  );
+  const artistName = cleanText(input.artistName, 160);
+  const title = cleanText(input.title, 160);
+  const artist = await findOrCreateArtist(supabase, workspace.workspaceId, artistName);
+  if (!artist) return NextResponse.json({ ok: false, error: 'Could not resolve the artist profile.' }, { status: 500 });
 
-  let artistProfileId: string;
-  const { data: existingArtist } = await supabase
-    .from('artist_profiles')
-    .select('id')
-    .eq('user_id', auth.user.id)
-    .maybeSingle();
-
-  if (existingArtist?.id) {
-    artistProfileId = existingArtist.id;
-    await supabase.from('artist_profiles').update({ artist_name: cleanText(input.artistName, 160) }).eq('id', artistProfileId);
-  } else {
-    const { data: artist, error: artistError } = await supabase
-      .from('artist_profiles')
-      .insert({ user_id: auth.user.id, artist_name: cleanText(input.artistName, 160) })
-      .select('id')
-      .single();
-    if (artistError || !artist) return NextResponse.json({ ok: false, error: artistError?.message || 'Could not create artist profile.' }, { status: 500 });
-    artistProfileId = artist.id;
-  }
-
-  const slug = createReleaseSlug(input.artistName, input.title);
   const status = releaseStatus(input.releaseDate || undefined);
+  const sourceUrl = input.sourceUrl || '';
   const { data: release, error: releaseError } = await supabase
     .from('releases')
     .insert({
-      artist_profile_id: artistProfileId,
-      title: cleanText(input.title, 160),
-      slug,
-      primary_artist_name: cleanText(input.artistName, 160),
-      release_type: input.releaseType,
+      workspace_id: workspace.workspaceId,
+      artist_id: artist.id,
+      title,
+      release_date: input.releaseDate || null,
       status,
       isrc: cleanText(input.isrc, 40) || null,
       upc: cleanText(input.upc, 40) || null,
-      release_date: input.releaseDate || null,
-      source_url: input.sourceUrl || null,
-      metadata_source: input.sourceUrl ? 'artist_url' : 'manual'
+      spotify_url: sourceUrl.includes('spotify.com') ? sourceUrl : null,
+      notes: `Release type: ${input.releaseType}. Created through ArtistOS Release Command Center.`
     })
-    .select('id,title,primary_artist_name,release_date,status,isrc,upc,source_url,created_at')
+    .select('id,artist_id,title,release_date,status,isrc,upc,spotify_url,created_at')
     .single();
 
-  if (releaseError || !release) {
-    return NextResponse.json({ ok: false, error: releaseError?.message || 'Could not create release.' }, { status: 500 });
-  }
+  if (releaseError || !release) return NextResponse.json({ ok: false, error: releaseError?.message || 'Could not create release.' }, { status: 500 });
 
-  const { data: track } = await supabase
-    .from('tracks')
-    .insert({
-      artist_profile_id: artistProfileId,
-      release_id: release.id,
-      title: cleanText(input.title, 160),
-      track_url: input.sourceUrl || null,
-      release_date: input.releaseDate || null
-    })
-    .select('id')
-    .single();
-
-  const linkMode = status === 'scheduled' ? 'presave' : 'live';
+  const slug = createReleaseSlug(artistName, title);
+  const linkMode = status === 'upcoming' ? 'presave' : 'live';
   const { data: smartLink, error: linkError } = await supabase
     .from('smart_links')
     .insert({
+      workspace_id: workspace.workspaceId,
+      owner_id: auth.user.id,
       release_id: release.id,
       slug,
       mode: linkMode,
-      headline: `${input.artistName} — ${input.title}`,
-      description: status === 'scheduled' ? 'Presave the release and get notified when it is live.' : 'Choose where to listen.',
+      headline: `${artistName} — ${title}`,
+      description: status === 'upcoming' ? 'Get notified when the release goes live.' : 'Choose where to listen.',
       capture_email: true,
       is_active: true
     })
     .select('id,slug,mode,is_active')
     .single();
 
-  if (linkError || !smartLink) return NextResponse.json({ ok: false, error: linkError?.message || 'Release saved, but smart link creation failed.' }, { status: 500 });
+  if (linkError || !smartLink) {
+    await supabase.from('releases').delete().eq('id', release.id);
+    return NextResponse.json({ ok: false, error: linkError?.message || 'Could not create the fan link.' }, { status: 500 });
+  }
 
-  if (input.sourceUrl) {
+  if (sourceUrl) {
     await supabase.from('smart_link_destinations').insert({
+      workspace_id: workspace.workspaceId,
       smart_link_id: smartLink.id,
-      service: inferService(input.sourceUrl),
-      url: input.sourceUrl,
+      service: inferService(sourceUrl),
+      url: sourceUrl,
       position: 0
     });
   }
@@ -228,37 +193,32 @@ export async function POST(request: Request) {
   const { data: campaign, error: campaignError } = await supabase
     .from('campaigns')
     .insert({
-      artist_profile_id: artistProfileId,
-      track_id: track?.id || null,
+      workspace_id: workspace.workspaceId,
       release_id: release.id,
-      name: `${cleanText(input.title, 160)} release campaign`,
-      goal: cleanText(input.campaignGoal, 120),
-      status: 'planning'
+      name: `${title} Release Campaign`,
+      status: 'active',
+      start_date: new Date().toISOString().slice(0, 10),
+      goals: cleanText(input.campaignGoal, 500)
     })
     .select('id,name,status')
     .single();
 
-  if (campaignError || !campaign) return NextResponse.json({ ok: false, error: campaignError?.message || 'Release saved, but campaign creation failed.' }, { status: 500 });
-
-  await supabase.from('audit_logs').insert({
-    actor_id: auth.user.id,
-    action: 'artistos.release.created',
-    entity_type: 'release',
-    entity_id: release.id,
-    metadata: { smart_link_id: smartLink.id, campaign_id: campaign.id, release_status: status }
-  });
+  if (campaignError || !campaign) {
+    await supabase.from('releases').delete().eq('id', release.id);
+    return NextResponse.json({ ok: false, error: campaignError?.message || 'Could not create the campaign.' }, { status: 500 });
+  }
 
   return NextResponse.json({
     ok: true,
     release: {
       id: release.id,
       title: release.title,
-      artistName: release.primary_artist_name,
+      artistName: artist.name,
       releaseDate: release.release_date,
       status: release.status,
       isrc: release.isrc,
       upc: release.upc,
-      sourceUrl: release.source_url,
+      sourceUrl: release.spotify_url || sourceUrl || null,
       smartLink: { id: smartLink.id, slug: smartLink.slug, mode: smartLink.mode, isActive: smartLink.is_active },
       campaign: { id: campaign.id, name: campaign.name, status: campaign.status },
       evidenceCount: 0,
