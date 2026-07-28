@@ -35,7 +35,7 @@ const demoData: LinkPageData = {
     title: 'Never Alone',
     primary_artist_name: 'Middle Child',
     release_date: '2026-07-31',
-    status: 'scheduled'
+    status: 'upcoming'
   },
   destinations: []
 };
@@ -55,7 +55,7 @@ async function getLinkData(slug: string): Promise<LinkPageData | null> {
   const [{ data: release }, { data: destinations }] = await Promise.all([
     supabase
       .from('releases')
-      .select('title,primary_artist_name,release_date,status')
+      .select('title,artist_id,release_date,status')
       .eq('id', smartLink.release_id)
       .maybeSingle(),
     supabase
@@ -67,6 +67,8 @@ async function getLinkData(slug: string): Promise<LinkPageData | null> {
   ]);
 
   if (!release) return null;
+  const { data: artist } = await supabase.from('artists').select('name').eq('id', release.artist_id).maybeSingle();
+
   return {
     id: smartLink.id,
     slug: smartLink.slug,
@@ -75,7 +77,12 @@ async function getLinkData(slug: string): Promise<LinkPageData | null> {
     description: smartLink.description,
     capture_email: smartLink.capture_email,
     consent_copy_version: smartLink.consent_copy_version,
-    release,
+    release: {
+      title: release.title,
+      primary_artist_name: artist?.name || 'Unknown artist',
+      release_date: release.release_date,
+      status: release.status
+    },
     destinations: destinations || []
   };
 }
