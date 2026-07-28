@@ -18,6 +18,8 @@ type FanRow = {
 
 export function FansWorkspace() {
   const [fans, setFans] = useState<FanRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [limit, setLimit] = useState(500);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
@@ -28,8 +30,11 @@ export function FansWorkspace() {
       const token = data.session?.access_token;
       const response = await fetch('/api/fans', { headers: token ? { Authorization: `Bearer ${token}` } : undefined, cache: 'no-store' });
       const json = await response.json().catch(() => ({ ok: false, error: 'Could not load fan records.' }));
-      if (json.ok) setFans(json.fans || []);
-      else setMessage(json.error || 'Could not load fan records.');
+      if (json.ok) {
+        setFans(json.fans || []);
+        setTotal(json.total || json.fans?.length || 0);
+        setLimit(json.limit || 500);
+      } else setMessage(json.error || 'Could not load fan records.');
       setLoading(false);
     }
     load();
@@ -48,7 +53,7 @@ export function FansWorkspace() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `artistos-fans-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.download = `artistos-fans-latest-${fans.length}-${new Date().toISOString().slice(0, 10)}.csv`;
     anchor.click();
     URL.revokeObjectURL(url);
   }
@@ -61,18 +66,18 @@ export function FansWorkspace() {
             <div className="max-w-2xl">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-[#c8ff00]">ArtistOS Fans</p>
               <h1 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-5xl">Own the audience your campaigns create.</h1>
-              <p className="mt-4 text-base leading-7 text-white/55">Every signup carries its source, campaign context and consent evidence. ArtistOS does not turn anonymous traffic into a “fan” without a real opt-in.</p>
+              <p className="mt-4 text-base leading-7 text-white/55">Every signup carries its source, campaign context and consent evidence. ArtistOS does not turn anonymous traffic into a fan without an explicit action.</p>
             </div>
-            <button className="inline-flex items-center gap-2 rounded-full bg-[#c8ff00] px-5 py-3 text-sm font-black text-black disabled:opacity-40" onClick={exportCsv} disabled={!fans.length}><Download size={15} /> Export CSV</button>
+            <button className="inline-flex items-center gap-2 rounded-full bg-[#c8ff00] px-5 py-3 text-sm font-black text-black disabled:opacity-40" onClick={exportCsv} disabled={!fans.length}><Download size={15} /> Export loaded {fans.length}</button>
           </div>
           <div className="mt-8 grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10">
-            {[[String(fans.length), 'Known fans'], [String(consented), 'With consent proof'], [String(sources), 'Acquisition sources']].map(([value, label]) => <div className="bg-[#111] p-4" key={label}><p className="text-2xl font-black text-[#c8ff00]">{value}</p><p className="mt-1 text-xs text-white/40">{label}</p></div>)}
+            {[[String(total), 'Known fan records'], [String(consented), `Consent proof in latest ${fans.length}`], [String(sources), `Sources in latest ${fans.length}`]].map(([value, label]) => <div className="bg-[#111] p-4" key={label}><p className="text-2xl font-black text-[#c8ff00]">{value}</p><p className="mt-1 text-xs text-white/40">{label}</p></div>)}
           </div>
         </section>
 
         <section className="mt-7 overflow-hidden rounded-3xl border border-black/10 bg-white">
           <div className="flex flex-col gap-3 border-b border-slate-100 p-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#e8ff91]"><Users2 size={18} /></span><div><h2 className="text-xl font-black">Fan records</h2><p className="mt-1 text-sm text-slate-500">First-party contacts captured by ArtistOS links.</p></div></div>
+            <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#e8ff91]"><Users2 size={18} /></span><div><h2 className="text-xl font-black">Fan records</h2><p className="mt-1 text-sm text-slate-500">Showing the latest {Math.min(limit, fans.length)} of {total.toLocaleString()} records. The CSV exports only the loaded page.</p></div></div>
             <Link className="btn-secondary gap-2" href="/dashboard">Manage releases <ArrowUpRight size={14} /></Link>
           </div>
 
