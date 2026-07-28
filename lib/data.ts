@@ -116,7 +116,7 @@ function mapCoreProperty(row: any): PromotionTarget {
     audienceSize,
     genres,
     moods: [],
-    contactMethod: row.contact_emails ? 'Verified contact data requires workspace access' : 'Research the official submission route before outreach',
+    contactMethod: 'Research the official submission route before outreach',
     submissionRules: 'Editorial consideration only. No guaranteed placement, streams, coverage, or response.',
     trustScore: coreTrustScore(row),
     fitNotes: row.notes || `${labelForType(type)} on ${row.platform || 'an identified music channel'}. Review genre and activity evidence before pitching.`,
@@ -135,7 +135,7 @@ async function getCoreProperties(limit = 500) {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('properties')
-    .select('id,name,property_type,platform,url,platform_url,genre_tags,genres,followers_estimate,followers_legacy,activity_status,verification_status,evidence_strength,notes,owner_or_operator,contact_emails,organizations(display_name,canonical_name,website,trust_tier,risk_tier)')
+    .select('id,name,property_type,platform,url,platform_url,genre_tags,genres,followers_estimate,followers_legacy,activity_status,verification_status,evidence_strength,notes,owner_or_operator,organizations(display_name,canonical_name,website,trust_tier,risk_tier)')
     .is('archived_at', null)
     .order('evidence_strength', { ascending: false })
     .order('created_at', { ascending: false })
@@ -197,7 +197,7 @@ export async function getPromotionTargetBySlug(slug: string): Promise<PromotionT
     const id = slug.slice('property-'.length);
     const { data } = await supabase
       .from('properties')
-      .select('id,name,property_type,platform,url,platform_url,genre_tags,genres,followers_estimate,followers_legacy,activity_status,verification_status,evidence_strength,notes,owner_or_operator,contact_emails,organizations(display_name,canonical_name,website,trust_tier,risk_tier)')
+      .select('id,name,property_type,platform,url,platform_url,genre_tags,genres,followers_estimate,followers_legacy,activity_status,verification_status,evidence_strength,notes,owner_or_operator,organizations(display_name,canonical_name,website,trust_tier,risk_tier)')
       .eq('id', id)
       .is('archived_at', null)
       .maybeSingle();
