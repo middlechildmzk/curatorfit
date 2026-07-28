@@ -3,12 +3,16 @@ import { getWorkspaceContext } from '@/lib/artistos-workspace';
 import { getRequestUser } from '@/lib/server-auth';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
+const pageLimit = 500;
+
 export async function GET(request: Request) {
   const supabase = getSupabaseAdmin();
   if (!supabase) {
     return NextResponse.json({
       ok: true,
       mode: 'demo',
+      total: 1,
+      limit: pageLimit,
       fans: [
         {
           id: 'demo-fan',
@@ -29,13 +33,13 @@ export async function GET(request: Request) {
   const workspace = await getWorkspaceContext(supabase, auth.user.id);
   if (!workspace) return NextResponse.json({ ok: false, error: 'No ArtistOS workspace is assigned to this account.' }, { status: 403 });
 
-  const { data: fans, error } = await supabase
+  const { data: fans, error, count } = await supabase
     .from('fans')
-    .select('id,email,first_name,consent_source,first_seen,created_at,last_seen_at,source_smart_link_id')
+    .select('id,email,first_name,consent_source,first_seen,created_at,last_seen_at,source_smart_link_id', { count: 'exact' })
     .eq('workspace_id', workspace.workspaceId)
     .is('archived_at', null)
     .order('created_at', { ascending: false })
-    .limit(500);
+    .limit(pageLimit);
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   const ids = (fans || []).map((fan) => fan.id);
@@ -55,6 +59,8 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ok: true,
+    total: count || 0,
+    limit: pageLimit,
     fans: (fans || []).map((fan) => ({
       id: fan.id,
       email: fan.email,
