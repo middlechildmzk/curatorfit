@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getWorkspaceContext } from '@/lib/artistos-workspace';
 import { getRequestUser } from '@/lib/server-auth';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
@@ -13,8 +14,8 @@ export async function GET(request: Request) {
           id: 'demo-fan',
           email: 'listener@example.com',
           firstName: 'Listener',
-          sourceChannel: 'smart_link',
-          sourceCampaign: 'never-alone-presave',
+          sourceChannel: 'artistos_smart_link',
+          sourceCampaign: 'middle-child-never-alone',
           firstSeenAt: new Date().toISOString(),
           consentCount: 2
         }
@@ -25,18 +26,32 @@ export async function GET(request: Request) {
   const auth = await getRequestUser(request);
   if (!auth) return NextResponse.json({ ok: false, error: 'Log in to view fan records.' }, { status: 401 });
 
+  const workspace = await getWorkspaceContext(supabase, auth.user.id);
+  if (!workspace) return NextResponse.json({ ok: false, error: 'No ArtistOS workspace is assigned to this account.' }, { status: 403 });
+
   const { data: fans, error } = await supabase
     .from('fans')
-    .select('id,email,first_name,source_channel,source_campaign,first_seen_at,last_seen_at,created_at')
-    .eq('owner_user_id', auth.user.id)
+    .select('id,email,first_name,consent_source,first_seen,created_at,last_seen_at,source_smart_link_id')
+    .eq('workspace_id', workspace.workspaceId)
+    .is('archived_at', null)
     .order('created_at', { ascending: false })
     .limit(500);
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   const ids = (fans || []).map((fan) => fan.id);
-  const { data: consents } = ids.length
-    ? await supabase.from('fan_consents').select('fan_id,granted').in('fan_id', ids).eq('granted', true)
-    : { data: [] };
+  const smartLinkIds = [...new Set((fans || []).map((fan) => fan.source_smart_link_id).filter(Boolean))] as string[];
+
+  const [consentResult, linkResult] = await Promise.all([
+    ids.length
+      ? supabase.from('fan_consents').select('fan_id,granted').eq('workspace_id', workspace.workspaceId).in('fan_id', ids).eq('granted', true)
+      : Promise.resolve({ data: [] as Array<{ fan_id: string; granted: boolean }> }),
+    smartLinkIds.length
+      ? supabase.from('smart_links').select('id,slug').eq('workspace_id', workspace.workspaceId).in('id', smartLinkIds)
+      : Promise.resolve({ data: [] as Array<{ id: string; slug: string }> })
+  ]);
+
+  const consents = consentResult.data || [];
+  const links = linkResult.data || [];
 
   return NextResponse.json({
     ok: true,
@@ -44,11 +59,11 @@ export async function GET(request: Request) {
       id: fan.id,
       email: fan.email,
       firstName: fan.first_name,
-      sourceChannel: fan.source_channel,
-      sourceCampaign: fan.source_campaign,
-      firstSeenAt: fan.first_seen_at,
+      sourceChannel: fan.consent_source || 'imported_or_unknown',
+      sourceCampaign: links.find((link) => link.id === fan.source_smart_link_id)?.slug || null,
+      firstSeenAt: fan.first_seen || fan.created_at,
       lastSeenAt: fan.last_seen_at,
-      consentCount: consents?.filter((consent) => consent.fan_id === fan.id).length || 0
+      consentCount: consents.filter((consent) => consent.fan_id === fan.id).length
     }))
   });
 }
