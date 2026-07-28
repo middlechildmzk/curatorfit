@@ -16,7 +16,7 @@ CuratorFit remains the verified promotion-network module inside ArtistOS rather 
 - Automatic smart-link and campaign creation with every new release
 - Public fan-link pages at `/l/[slug]`
 - Data-minimized email consent capture with policy version, timestamp, source page and campaign attribution
-- Artist-owned fan CRM and CSV export at `/fans`
+- Artist-owned fan CRM with an exact workspace count, a clearly labeled latest-500 view and page-scoped CSV export at `/fans`
 - Append-oriented Proof ledger and manual evidence intake at `/proof`
 - L1-L11 verification taxonomy with method, confidence, freshness and contradiction state
 - Campaign Command Center using the existing workspace campaigns and campaign targets
@@ -75,6 +75,7 @@ Run these migrations against a workspace-based ArtistOS core, in order:
 supabase/migrations/20260728223000_artistos_release_foundation.sql
 supabase/migrations/20260728233000_artistos_release_foundation_advisor_hardening.sql
 supabase/migrations/20260728234500_seed_existing_artistos_release_links.sql
+supabase/migrations/20260728235500_minimize_fan_consent_evidence.sql
 ```
 
 They add or extend:
@@ -88,7 +89,7 @@ They add or extend:
 - verification level, method, confidence, freshness and contradiction fields on `evidence_records`
 - smart-link attribution and consent timestamps on `fans`
 
-The migrations use workspace membership for authorization. Consent and link-event records are append-only to authenticated clients. Public link reads and public fan capture run through server-only routes.
+The migrations use workspace membership for authorization. Consent and link-event records are append-only to authenticated clients. Public link reads and public fan capture run through server-only routes. The consent ledger intentionally excludes IP-address and user-agent fingerprint fields.
 
 ## Existing release links
 
@@ -115,7 +116,7 @@ Then verify:
 3. Create a release and confirm its release, smart link and campaign records are created together.
 4. Open `/l/<generated-slug>`.
 5. Submit the explicit email-consent form.
-6. Confirm the fan appears at `/fans` with consent records.
+6. Confirm the fan appears at `/fans` with consent records and an unverified email identity.
 7. Open `/campaigns`, attach a `property-<uuid>` target and update its relationship status.
 8. Open `/proof`, append a live evidence URL and confirm the release proof count increases.
 
@@ -125,13 +126,16 @@ ArtistOS must not promise or transact guaranteed Spotify placement, streams, sav
 
 Manual evidence cannot label itself L1-L4. Only supported public checks or authorized-account integrations may create stronger verification records.
 
+A public fan form records an explicit web-form consent event, but it does not verify control of the submitted email address. Automated marketing must remain disabled until a double-opt-in confirmation workflow has succeeded. Submitting an address that already exists in an imported fan record does not overwrite that record's previous consent status.
+
 Do not use `escrow` in product language without qualified legal approval. Future payments should use milestone-protected or delayed-payout language and an approved marketplace payment architecture.
 
 ## Next build sequence
 
 1. Add metadata resolution and destination discovery behind provider adapters.
-2. Add public page-view and destination-click attribution through a controlled redirect route.
-3. Add automated L1 checks for supported public URLs.
-4. Add authorized L2-L4 platform connections.
-5. Add campaign deliverables, disclosures and verification jobs.
-6. Add campaign-attributed intelligence from owned data before licensing global market data.
+2. Add double-opt-in email verification before enabling automated fan messaging.
+3. Add public page-view and destination-click attribution through a controlled redirect route.
+4. Add automated L1 checks for supported public URLs.
+5. Add authorized L2-L4 platform connections.
+6. Add campaign deliverables, disclosures and verification jobs.
+7. Add campaign-attributed intelligence from owned data before licensing global market data.
