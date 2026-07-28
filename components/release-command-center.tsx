@@ -97,6 +97,13 @@ export function ReleaseCommandCenter() {
     return { releases: releases.length, links, campaigns, evidence };
   }, [releases]);
 
+  const metricCards = [
+    { label: 'Releases', value: metrics.releases, icon: Music2 },
+    { label: 'Live links', value: metrics.links, icon: Link2 },
+    { label: 'Campaigns', value: metrics.campaigns, icon: Megaphone },
+    { label: 'Proof records', value: metrics.evidence, icon: FileCheck2 }
+  ];
+
   return (
     <main className="min-h-screen bg-[#f4f5f1] pb-20">
       <section className="border-b border-black/10 bg-[#0b0b0b] text-white">
@@ -114,16 +121,11 @@ export function ReleaseCommandCenter() {
               </p>
             </div>
             <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 sm:grid-cols-4 lg:min-w-[520px]">
-              {[
-                ['Releases', metrics.releases, Music2],
-                ['Live links', metrics.links, Link2],
-                ['Campaigns', metrics.campaigns, Megaphone],
-                ['Proof records', metrics.evidence, FileCheck2]
-              ].map(([label, value, Icon]) => (
-                <div className="bg-[#111] p-4" key={String(label)}>
+              {metricCards.map(({ label, value, icon: Icon }) => (
+                <div className="bg-[#111] p-4" key={label}>
                   <Icon className="h-4 w-4 text-[#c8ff00]" />
-                  <p className="mt-5 text-2xl font-black">{String(value)}</p>
-                  <p className="mt-1 text-xs font-medium text-white/45">{String(label)}</p>
+                  <p className="mt-5 text-2xl font-black">{value}</p>
+                  <p className="mt-1 text-xs font-medium text-white/45">{label}</p>
                 </div>
               ))}
             </div>
