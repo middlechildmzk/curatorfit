@@ -18,6 +18,45 @@ export async function getWorkspaceContext(supabase: SupabaseClient, userId: stri
   return { workspaceId: data.workspace_id, role: String(data.role || 'viewer') };
 }
 
+export async function ensureWorkspaceForUser(
+  supabase: SupabaseClient,
+  input: {
+    userId: string;
+    email?: string | null;
+    displayName?: string | null;
+    includeArtist?: boolean;
+    artistName?: string | null;
+  }
+): Promise<WorkspaceContext | null> {
+  const existing = await getWorkspaceContext(supabase, input.userId);
+  if (existing) {
+    await supabase.from('profiles').update({ current_workspace_id: existing.workspaceId }).eq('id', input.userId);
+    if (input.includeArtist && input.artistName) await findOrCreateArtist(supabase, existing.workspaceId, input.artistName);
+    return existing;
+  }
+
+  const identity = String(input.displayName || input.email?.split('@')[0] || 'ArtistOS member').trim();
+  const { data: workspace, error: workspaceError } = await supabase
+    .from('workspaces')
+    .insert({ name: `${identity} / ArtistOS` })
+    .select('id')
+    .single();
+  if (workspaceError || !workspace?.id) return null;
+
+  const { error: membershipError } = await supabase
+    .from('workspace_members')
+    .insert({ workspace_id: workspace.id, user_id: input.userId, role: 'owner' });
+  if (membershipError) {
+    await supabase.from('workspaces').delete().eq('id', workspace.id);
+    return null;
+  }
+
+  await supabase.from('profiles').update({ current_workspace_id: workspace.id }).eq('id', input.userId);
+  if (input.includeArtist) await findOrCreateArtist(supabase, workspace.id, input.artistName || identity);
+
+  return { workspaceId: workspace.id, role: 'owner' };
+}
+
 export function canManageWorkspace(role: string) {
   return ['owner', 'admin', 'editor'].includes(role);
 }
@@ -27,11 +66,14 @@ export async function findOrCreateArtist(
   workspaceId: string,
   artistName: string
 ): Promise<{ id: string; name: string } | null> {
+  const normalizedName = artistName.trim();
+  if (!normalizedName) return null;
+
   const { data: existing } = await supabase
     .from('artists')
     .select('id,name')
     .eq('workspace_id', workspaceId)
-    .ilike('name', artistName)
+    .ilike('name', normalizedName)
     .limit(1)
     .maybeSingle();
 
@@ -39,7 +81,7 @@ export async function findOrCreateArtist(
 
   const { data, error } = await supabase
     .from('artists')
-    .insert({ workspace_id: workspaceId, name: artistName })
+    .insert({ workspace_id: workspaceId, name: normalizedName })
     .select('id,name')
     .single();
 
