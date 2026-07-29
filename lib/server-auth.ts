@@ -3,7 +3,15 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export type AuthResult = {
   user: { id: string; email?: string | null };
-  profile: { id: string; role: string; email?: string | null; display_name?: string | null } | null;
+  profile: {
+    id: string;
+    role: string;
+    primary_role?: string | null;
+    onboarding_completed?: boolean | null;
+    current_workspace_id?: string | null;
+    email?: string | null;
+    display_name?: string | null;
+  } | null;
 };
 
 export function getBearerToken(request: Request) {
@@ -21,7 +29,7 @@ export async function getRequestUser(request: Request): Promise<AuthResult | nul
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id,email,display_name,role')
+    .select('id,email,display_name,role,primary_role,onboarding_completed,current_workspace_id')
     .eq('id', userData.user.id)
     .maybeSingle();
 
@@ -35,7 +43,7 @@ export async function requireAdmin(request: Request) {
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
   const email = auth?.user.email?.toLowerCase() || auth?.profile?.email?.toLowerCase() || '';
-  const isAdmin = auth?.profile?.role === 'admin' || (email && adminEmails.includes(email));
+  const isAdmin = auth?.profile?.role === 'admin' || auth?.profile?.primary_role === 'admin' || (email && adminEmails.includes(email));
 
   if (!auth || !isAdmin) {
     return {

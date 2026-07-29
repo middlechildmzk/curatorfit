@@ -19,15 +19,16 @@ export default async function TargetPage({ params }: { params: Promise<{ slug: s
   const { slug } = await params;
   const target = await getPromotionTargetBySlug(slug);
   if (!target) return notFound();
+  const isCoreProperty = target.slug.startsWith('property-');
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-12">
       <Link href="/targets" className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-brand"><ArrowLeft size={16} /> Back to targets</Link>
-      <section className="card overflow-hidden">
-        <div className="bg-gradient-to-br from-slate-950 via-indigo-950 to-teal-900 p-8 text-white md:p-10">
-          <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-teal-100">{target.channelLabel}</span>
+      <section className="overflow-hidden rounded-3xl border border-black/10 bg-white">
+        <div className="bg-[#0b0b0b] p-8 text-white md:p-10">
+          <span className="rounded-full bg-[#c8ff00]/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#c8ff00]">{target.channelLabel}</span>
           <h1 className="mt-5 text-4xl font-black tracking-tight md:text-6xl">{target.name}</h1>
-          <p className="mt-3 text-slate-200">{target.owner} · {target.audienceSize}</p>
+          <p className="mt-3 text-white/55">{target.owner} · {target.audienceSize}</p>
         </div>
         <div className="grid gap-6 p-6 md:grid-cols-[1fr_320px] md:p-8">
           <div>
@@ -59,7 +60,8 @@ export default async function TargetPage({ params }: { params: Promise<{ slug: s
             </div>
             <a href={target.url} target="_blank" rel="noreferrer" className="btn-primary mt-6 w-full">Open target <ExternalLink size={16} /></a>
             <SaveTargetButton targetSlug={target.slug} />
-            <Link href="/claim" className="btn-secondary mt-3 w-full">Claim or update</Link>
+            <Link href={isCoreProperty ? `/professional?claim=${encodeURIComponent(target.slug)}` : '/professional'} className="btn-secondary mt-3 w-full">{isCoreProperty ? 'Claim this property' : 'Create professional profile'}</Link>
+            {isCoreProperty ? <p className="mt-3 break-all rounded-xl bg-white p-3 text-[10px] leading-5 text-slate-400">Property slug: {target.slug}</p> : null}
           </aside>
         </div>
       </section>
