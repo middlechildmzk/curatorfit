@@ -5,10 +5,10 @@ import { AuthStatus } from '@/components/auth-status';
 const primaryLinks = [
   { href: '/dashboard', label: 'Releases' },
   { href: '/campaigns', label: 'Campaigns' },
-  { href: '/targets', label: 'CuratorFit Network' },
+  { href: '/targets', label: 'CuratorFit' },
+  { href: '/connections', label: 'Connections' },
   { href: '/proof', label: 'Proof' },
-  { href: '/fans', label: 'Fans' },
-  { href: '/tools', label: 'Tools' }
+  { href: '/fans', label: 'Fans' }
 ];
 
 export function SiteHeader() {
@@ -22,7 +22,7 @@ export function SiteHeader() {
             <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Release operating system</span>
           </span>
         </Link>
-        <nav className="hidden items-center gap-5 text-sm font-semibold text-slate-600 xl:flex">
+        <nav aria-label="Primary navigation" className="hidden items-center gap-4 text-sm font-semibold text-slate-600 xl:flex">
           {primaryLinks.map((link) => <Link className="transition hover:text-black" key={link.href} href={link.href}>{link.label}</Link>)}
         </nav>
         <div className="flex items-center gap-2">
