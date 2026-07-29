@@ -1,31 +1,52 @@
-# ArtistOS Release Command Center
+# ArtistOS Marketplace Foundation
 
-ArtistOS is the release operating system built from the existing CuratorFit foundation and the production `artistos-core` workspace graph.
+ArtistOS is the release and promotion operating system built from the existing CuratorFit product and the production `artistos-core` workspace graph.
 
 ```text
-release -> smart link -> campaign -> target -> evidence -> fan
+release -> link -> campaign -> target -> submission -> feedback -> evidence -> fan
 ```
 
-CuratorFit remains the verified promotion-network module inside ArtistOS rather than a separate, disconnected application.
+CuratorFit is the professional discovery and opportunity network inside ArtistOS. It is not a disconnected playlist database.
 
 ## Implemented in this branch
 
-- ArtistOS public homepage and unified navigation
+### Artist workspace
+
 - Release Command Center at `/dashboard`
-- Workspace-native release creation using the existing `artists` and `releases` domains
-- Automatic smart-link and campaign creation with every new release
+- Canonical release creation using existing `artists` and `releases`
+- Automatic smart-link and campaign creation
 - Public fan-link pages at `/l/[slug]`
-- Data-minimized email consent capture with policy version, timestamp, source page and campaign attribution
-- Artist-owned fan CRM with an exact workspace count, a clearly labeled latest-500 view and page-scoped CSV export at `/fans`
-- Append-oriented Proof ledger and manual evidence intake at `/proof`
-- L1-L11 verification taxonomy with method, confidence, freshness and contradiction state
-- Campaign Command Center using the existing workspace campaigns and campaign targets
-- CuratorFit target discovery backed by the production `properties` and `organizations` network
-- No guaranteed streams, playlist placement or algorithmic-outcome mechanics
+- Campaign target discovery from the production CuratorFit network
+- Artist-approved submission routing from `/campaigns`
+- Explainable match score and match reasons
+- Artist-owned fan CRM at `/fans`
+- Proof ledger at `/proof`
+- Music and social Connections Center at `/connections`
+
+### Professional workspace
+
+- Artist, professional and hybrid onboarding at `/onboarding`
+- Professional profile and capacity settings at `/professional`
+- Multiple professional types, including playlist, YouTube, blog, creator, DJ, radio, podcast, label and sync
+- Review model, turnaround and fee settings
+- Property ownership claims with evidence and verification method
+- Professional submission inbox at `/inbox`
+- Structured review decisions and meaningful feedback
+- Proposed promotional deliverables and disclosure requirements
+- Participant messaging attached to each submission
+
+### Marketplace routing
+
+A campaign target follows one of two routes:
+
+1. `marketplace`: the property is connected to an approved professional profile, so the submission enters the professional's ArtistOS inbox.
+2. `outreach`: the property is not yet connected, so ArtistOS preserves an artist-approved outreach record without pretending the target is an active marketplace member.
+
+The first matching model is deterministic and explainable. It scores genre overlap, property verification, recent activity and evidence strength. It does not claim an opaque AI confidence score.
 
 ## Production data reused
 
-The application extends the existing workspace-based ArtistOS core. It does not recreate or replace these production domains:
+The application extends the existing workspace-based ArtistOS core. It does not replace:
 
 - `workspaces` and `workspace_members`
 - `artists`
@@ -34,8 +55,23 @@ The application extends the existing workspace-based ArtistOS core. It does not 
 - `evidence_records`
 - `fans`
 - `organizations`, `properties`, `people` and `submission_endpoints`
+- `music_platforms`, `artist_platform_profiles` and `oauth_connections`
 
-The compatibility migrations add only the missing fan-link, consent, event and deliverable structures, plus release-level verification fields on the existing evidence ledger.
+The live network already contains thousands of properties and people. Imported records remain evidence-scored candidate records until claimed or independently verified.
+
+## Marketplace data model
+
+The marketplace migrations add:
+
+- `profiles`
+- `professional_profiles`
+- `property_claims`
+- `professional_properties`
+- `campaign_submissions`
+- `submission_feedback`
+- `submission_messages`
+
+These records connect to the existing release, campaign, target, evidence and workspace domains.
 
 ## Stack
 
@@ -45,15 +81,14 @@ The compatibility migrations add only the missing fan-link, consent, event and d
 - Tailwind CSS
 - Supabase Auth, Postgres and Row Level Security
 - Zod request validation
+- GitHub Actions typecheck and production-build gate
 
 ## Local setup
 
 ```bash
-npm install
+npm install --legacy-peer-deps
 npm run dev
 ```
-
-Open `http://localhost:3000`.
 
 Create `.env.local`:
 
@@ -67,75 +102,94 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
 Never expose `SUPABASE_SERVICE_ROLE_KEY` through a `NEXT_PUBLIC_` variable.
 
+Optional provider credentials are detected by the Connections Center:
+
+```bash
+SPOTIFY_CLIENT_ID=
+SPOTIFY_CLIENT_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+META_APP_ID=
+META_APP_SECRET=
+TIKTOK_CLIENT_KEY=
+TIKTOK_CLIENT_SECRET=
+SOUNDCLOUD_CLIENT_ID=
+SOUNDCLOUD_CLIENT_SECRET=
+APPLE_MUSIC_KEY_ID=
+APPLE_MUSIC_TEAM_ID=
+```
+
+The current branch does not fake provider authorization. Without provider credentials and platform approval, ArtistOS stores official profile links as user-supplied, unverified evidence.
+
 ## Database migrations
 
-Run these migrations against a workspace-based ArtistOS core, in order:
+Run in order:
 
 ```text
 supabase/migrations/20260728223000_artistos_release_foundation.sql
 supabase/migrations/20260728233000_artistos_release_foundation_advisor_hardening.sql
 supabase/migrations/20260728234500_seed_existing_artistos_release_links.sql
 supabase/migrations/20260728235500_minimize_fan_consent_evidence.sql
+supabase/migrations/20260729001500_artistos_marketplace_identity.sql
+supabase/migrations/20260729003000_marketplace_function_grants.sql
+supabase/migrations/20260729004500_marketplace_rls_performance.sql
 ```
 
-They add or extend:
+The marketplace migrations were applied additively to `artistos-core`. They preserve the existing catalog, campaigns, evidence records, fans and network records.
 
-- `smart_links`
-- `smart_link_destinations`
-- `campaign_deliverables`
-- `fan_consents`
-- `link_events`
-- release, campaign, target and deliverable references on `evidence_records`
-- verification level, method, confidence, freshness and contradiction fields on `evidence_records`
-- smart-link attribution and consent timestamps on `fans`
+## Security and privacy posture
 
-The migrations use workspace membership for authorization. Consent and link-event records are append-only to authenticated clients. Public link reads and public fan capture run through server-only routes. The consent ledger intentionally excludes IP-address and user-agent fingerprint fields.
+- Workspace access is fail-closed and role-scoped.
+- Auth trigger and workspace provisioning functions are not callable by anonymous or signed-in RPC clients.
+- Public CuratorFit reads do not select stored contact emails.
+- Property ownership is pending until verified.
+- Consent records exclude IP-address and user-agent fingerprinting.
+- Existing imported contacts do not become opted-in marketing contacts.
+- Manual evidence cannot claim L1-L4 verification.
+- Automated fan messaging remains disabled until double opt-in is implemented.
 
-## Existing release links
+The remaining Supabase security advisory is the project-wide leaked-password setting. ArtistOS currently uses passwordless email magic links, but the setting should still be enabled before adding password authentication.
 
-The seed migration creates or updates:
+## Promotion policy boundary
 
-- `middle-child-never-alone` in presave mode, with the known HyperFollow destination
-- `middle-child-mercy` in live mode
+ArtistOS must not promise or transact guaranteed Spotify placement, streams, saves, followers or algorithmic outcomes.
 
-It also normalizes the delivered `Never Alone` metadata to `lowly sunday` and UPC `882877618355`.
+A Spotify curator may be compensated only for legitimate listening, review, feedback and a timely decision. Payment cannot depend on adding the track or generating streams.
+
+Sponsored creator, publication, YouTube, DJ and broadcast workflows require accurate deliverable terms, applicable disclosures and legal review.
+
+Do not use `escrow` in product language without qualified legal approval. Future payments should use milestone-protected or delayed-payout language and an approved marketplace payment architecture.
 
 ## Validation
 
-Run:
+The branch is validated by `.github/workflows/artistos-validation.yml`:
 
 ```bash
 npm run typecheck
 npm run build
 ```
 
-Then verify:
+Manual flow:
 
-1. Log in and open `/dashboard`.
-2. Confirm existing releases and smart links load from the workspace.
-3. Create a release and confirm its release, smart link and campaign records are created together.
-4. Open `/l/<generated-slug>`.
-5. Submit the explicit email-consent form.
-6. Confirm the fan appears at `/fans` with consent records and an unverified email identity.
-7. Open `/campaigns`, attach a `property-<uuid>` target and update its relationship status.
-8. Open `/proof`, append a live evidence URL and confirm the release proof count increases.
-
-## Compliance posture
-
-ArtistOS must not promise or transact guaranteed Spotify placement, streams, saves, followers or algorithmic outcomes. Spotify-related compensation may cover listening, review and feedback only. Sponsored creator, publication and broadcast workflows require the applicable disclosures and legal review.
-
-Manual evidence cannot label itself L1-L4. Only supported public checks or authorized-account integrations may create stronger verification records.
-
-A public fan form records an explicit web-form consent event, but it does not verify control of the submitted email address. Automated marketing must remain disabled until a double-opt-in confirmation workflow has succeeded. Submitting an address that already exists in an imported fan record does not overwrite that record's previous consent status.
-
-Do not use `escrow` in product language without qualified legal approval. Future payments should use milestone-protected or delayed-payout language and an approved marketplace payment architecture.
+1. Log in through `/login` and complete `/onboarding`.
+2. Create an artist, professional or hybrid workspace.
+3. Create or open a release at `/dashboard`.
+4. Add CuratorFit targets at `/campaigns`.
+5. Route a target into marketplace or outreach mode.
+6. For a professional account, claim a property at `/professional`.
+7. Open `/inbox`, start review and submit feedback.
+8. Confirm feedback appears in the artist campaign.
+9. Link official platform profiles at `/connections`.
+10. Add evidence at `/proof` and confirm release proof counts update.
 
 ## Next build sequence
 
-1. Add metadata resolution and destination discovery behind provider adapters.
-2. Add double-opt-in email verification before enabling automated fan messaging.
-3. Add public page-view and destination-click attribution through a controlled redirect route.
-4. Add automated L1 checks for supported public URLs.
-5. Add authorized L2-L4 platform connections.
-6. Add campaign deliverables, disclosures and verification jobs.
-7. Add campaign-attributed intelligence from owned data before licensing global market data.
+1. Add provider-specific OAuth authorization and refresh routes.
+2. Add metadata resolution and cross-platform destination discovery.
+3. Add campaign budgets, Stripe Connect test mode and milestone-protected payments.
+4. Add double-opt-in email verification.
+5. Add automated L1 verification jobs for supported public URLs.
+6. Add authorized L2-L4 analytics synchronization.
+7. Add campaign deliverables and Proof verification jobs.
+8. Add owned-data release progress and campaign attribution.
+9. Add network ingestion, deduplication, freshness and admin claim review at scale.
